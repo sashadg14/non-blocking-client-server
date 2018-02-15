@@ -1,3 +1,5 @@
+import javafx.util.Pair;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -15,7 +17,7 @@ public class ServerConnectionHandler {
     private int port = 19000;
     private Selector selector;
     private ServerSocketChannel serverSocketChannel;
-    PairsHandler pairsHandler = new PairsHandler();
+    AllClientsBase allClientsBase = new AllClientsBase();
     MessagesUtils mUtils = new MessagesUtils();
 
     public void createConnection() throws IOException {
@@ -32,6 +34,11 @@ public class ServerConnectionHandler {
                 continue;
             }
             handleSet(selector.selectedKeys());
+            Pair<SocketChannel,SocketChannel> pair=allClientsBase.createNewPairOfUserAndAgent();
+            if(pair!=null){
+                sendMessageToClient(pair.getKey(),"your agent is "+allClientsBase.getAgentNameByChanel(pair.getValue()));
+                sendMessageToClient(pair.getValue(),"your user is "+allClientsBase.getUserNameByChanel(pair.getKey()));
+            }
         }
     }
 
@@ -61,18 +68,22 @@ public class ServerConnectionHandler {
     private void messageHandle(SelectionKey key, String message) throws IOException {
         switch (mUtils.getMessageType(message)) {
             case Constants.MESSAGE_TYPE_REGISTER:
-                if (mUtils.isSignInUserMessage(message))
-                    if (!pairsHandler.isAutorized((SocketChannel) key.channel())) {
-                        pairsHandler.addNewUser((SocketChannel) key.channel(), mUtils.getNameFromMessage(message));
-                        sendMessageToClient(key, Constants.SUCCESS_REGISTRED);
-                    } else {
-                        sendMessageToClient(key, Constants.ERROR_ALREADY_REGISTRED);
-                    }
+                handleRegistration(key,message);
                 break;
             case Constants.MESSAGE_TYPE_SMS:
-                if (!pairsHandler.isAutorized((SocketChannel) key.channel())) {
-                    sendMessageToClient(key, Constants.ERROR_NEED_REGISTERING);
+                if (!allClientsBase.isAutorized((SocketChannel) key.channel(), mUtils.getNameFromMessage(message))) {
+                    sendMessageToClient((SocketChannel) key.channel(), Constants.ERROR_NEED_REGISTERING);
                 } else {
+                   // System.out.println(allClientsBase.getUserNameByChanel((SocketChannel) key.channel()));
+                    if(allClientsBase.doesClientHasInterlocutor((SocketChannel) key.channel())) {
+                        if (allClientsBase.doesItsUserChannel((SocketChannel) key.channel()))
+                            sendMessageToClient(allClientsBase.getClientInterlocutorChannel((SocketChannel) key.channel()),"agent: "+message);
+                        else sendMessageToClient(allClientsBase.getClientInterlocutorChannel((SocketChannel) key.channel()),"user: "+message);
+                    } else {
+                        if (allClientsBase.doesItsUserChannel((SocketChannel) key.channel()))
+                            sendMessageToClient((SocketChannel) key.channel(),"wait your agent");
+                        else sendMessageToClient((SocketChannel) key.channel(),"you have't user");
+                    }
                     //TODO: отправка сообщений другому юзеру
                 }
                 break;
@@ -85,10 +96,26 @@ public class ServerConnectionHandler {
         }
     }
 
-    private void sendMessageToClient(SelectionKey key, String message) throws IOException {
+    private void handleRegistration(SelectionKey key,String message) throws IOException {
+        String name = mUtils.getNameFromMessage(message);
+        if (allClientsBase.isAutorized((SocketChannel) key.channel(), name)) {
+            sendMessageToClient((SocketChannel) key.channel(), Constants.ERROR_ALREADY_REGISTRED);
+            return;
+        }
+        if (mUtils.isSignInUserMessage(message)) {
+            allClientsBase.addNewUser((SocketChannel) key.channel(), name);
+            sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED);
+            System.out.println("user");
+        } else if (mUtils.isSignInAgentMessage(message)) {
+            allClientsBase.addNewAgent((SocketChannel) key.channel(), name);
+            sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED);
+            System.out.println("agent");
+        }
+    }
+
+    private void sendMessageToClient(SocketChannel channel, String message) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
-        SocketChannel socketChannel = (SocketChannel) key.channel();
-        socketChannel.write(buffer);
+        channel.write(buffer);
         buffer.flip();
     }
 
