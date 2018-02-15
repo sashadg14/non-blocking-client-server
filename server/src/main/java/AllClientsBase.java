@@ -17,9 +17,11 @@ public class AllClientsBase {
 
     public void addNewUser(SocketChannel channel, String name) {
         usersMap.put(channel, name);
+       // waitingUsersList.add(channel);
+    }
+    public void addUserChannelInWaiting(SocketChannel channel){
         waitingUsersList.add(channel);
     }
-
     public void addNewAgent(SocketChannel channel, String name) {
         agentsMap.put(channel, name);
         freeArentsList.add(channel);

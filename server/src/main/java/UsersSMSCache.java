@@ -7,8 +7,9 @@ import java.util.Map;
  */
 public class UsersSMSCache {
     private Map<SocketChannel,String> smsCache=new HashMap<>();
-    public String getCachedSMS(SocketChannel channel){
-        return smsCache.get(channel);
+
+    public String removeCachedSMS(SocketChannel channel){
+        return smsCache.remove(channel);
     }
 
     public void addSMSinCache(SocketChannel channel,String sms){

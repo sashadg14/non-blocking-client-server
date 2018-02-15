@@ -11,31 +11,35 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.util.Iterator;
+import java.util.Scanner;
 import java.util.Set;
 
 /**
  * Created by Alex on 14.02.2018.
  */
-public class ClientConectionHandler {
+
+public class ClientConnectionHandler {
     private Selector selector;
     SocketChannel channel;
+    boolean isActive=true;
     Thread thread = new Thread(() -> {
-        BufferedReader userInputReader = new BufferedReader(new InputStreamReader(System.in));
-        while (true) {
-            String message = null/* "q1234567"*/;
-            try {
-                message = userInputReader.readLine();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        Scanner scanner=new Scanner(System.in);
+        while (scanner.hasNext()&&isActive){
+            String message = scanner.nextLine();
             ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
             try {
                 channel.write(buffer);
             } catch (IOException e) {
-                e.printStackTrace();
+               scanner.close();
+                System.out.println("The server probably broke down");
+                break;
             }
         }
     });
+
+    public void closeThread(){
+        isActive=false;
+    }
 
     public String readString() throws Exception {
         ByteBuffer buffer = ByteBuffer.allocate(4024);
@@ -48,13 +52,18 @@ public class ClientConectionHandler {
         return msg;
     }
 
-    public boolean processReadySet(Set readySet) throws Exception {
+    public boolean processReadySet(Set readySet) {
         Iterator iterator = readySet.iterator();
         while (iterator.hasNext()) {
             SelectionKey key = (SelectionKey)
                     iterator.next();
             if (key.isReadable()) {
-                String msg = readString();
+                String msg = null;
+                try {
+                    msg = readString();
+                } catch (Exception e){
+                    return true;
+                }
                 System.out.println("-> " + msg);
             }
             iterator.remove();

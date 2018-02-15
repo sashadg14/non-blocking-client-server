@@ -19,6 +19,7 @@ public class ServerConnectionHandler {
     private ServerSocketChannel serverSocketChannel;
     AllClientsBase allClientsBase = new AllClientsBase();
     MessagesUtils mUtils = new MessagesUtils();
+    UsersSMSCache usersSMSCache=new UsersSMSCache();
 
     public void createConnection() throws IOException {
         selector = Selector.open();
@@ -34,11 +35,16 @@ public class ServerConnectionHandler {
                 continue;
             }
             handleSet(selector.selectedKeys());
-            Pair<SocketChannel,SocketChannel> pair=allClientsBase.createNewPairOfUserAndAgent();
-            if(pair!=null){
-                sendMessageToClient(pair.getKey(),"your agent is "+allClientsBase.getAgentNameByChanel(pair.getValue()));
-                sendMessageToClient(pair.getValue(),"your user is "+allClientsBase.getUserNameByChanel(pair.getKey()));
-            }
+            tryToCreateNewPair();
+        }
+    }
+
+    public void tryToCreateNewPair() throws IOException {
+        Pair<SocketChannel,SocketChannel> pair=allClientsBase.createNewPairOfUserAndAgent();
+        if(pair!=null){
+            sendMessageToClient(pair.getKey(),"your agent is "+allClientsBase.getAgentNameByChanel(pair.getValue()));
+            sendMessageToClient(pair.getValue(),"your user is "+allClientsBase.getUserNameByChanel(pair.getKey())+"\n");
+            sendMessageToClient(pair.getValue(),"user: "+usersSMSCache.removeCachedSMS(pair.getKey()));
         }
     }
 
@@ -80,15 +86,18 @@ public class ServerConnectionHandler {
                             sendMessageToClient(allClientsBase.getClientInterlocutorChannel((SocketChannel) key.channel()),"agent: "+message);
                         else sendMessageToClient(allClientsBase.getClientInterlocutorChannel((SocketChannel) key.channel()),"user: "+message);
                     } else {
-                        if (allClientsBase.doesItsUserChannel((SocketChannel) key.channel()))
+                        if (allClientsBase.doesItsUserChannel((SocketChannel) key.channel())) {
+                            usersSMSCache.addSMSinCache((SocketChannel) key.channel(),message);
+                            allClientsBase.addUserChannelInWaiting((SocketChannel) key.channel());
                             sendMessageToClient((SocketChannel) key.channel(),"wait your agent");
+                        }
                         else sendMessageToClient((SocketChannel) key.channel(),"you have't user");
                     }
                     //TODO: отправка сообщений другому юзеру
                 }
                 break;
             case Constants.MESSAGE_TYPE_EXIT:
-                key.channel().close();
+               // key.channel().close();
                 break;
             case Constants.MESSAGE_TYPE_LEAVE:
                 //TODO: открепление юзера
@@ -105,11 +114,11 @@ public class ServerConnectionHandler {
         if (mUtils.isSignInUserMessage(message)) {
             allClientsBase.addNewUser((SocketChannel) key.channel(), name);
             sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED);
-            System.out.println("user");
+            //System.out.println("user");
         } else if (mUtils.isSignInAgentMessage(message)) {
             allClientsBase.addNewAgent((SocketChannel) key.channel(), name);
-            sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED);
-            System.out.println("agent");
+            sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED+"\n");
+           // System.out.println("agent");
         }
     }
 
