@@ -1,7 +1,4 @@
-import com.sun.istack.internal.NotNull;
-
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -18,6 +15,7 @@ public class ServerConnectionHandler {
     private int port = 19000;
     private Selector selector;
     private ServerSocketChannel serverSocketChannel;
+    PairsHandler pairsHandler=new PairsHandler();
     public void createConnection() throws IOException {
         selector = Selector.open();
         serverSocketChannel= ServerSocketChannel.open();
@@ -46,29 +44,60 @@ public class ServerConnectionHandler {
                // (socketChannel).write(ByteBuffer.wrap("qewrreqwrqew".getBytes()));
             } else
             if (key.isReadable()) {
-                String msg = processRead(key);
-                System.out.println(msg);
-                if (msg.length() > 0) {
-                    ByteBuffer buffer = ByteBuffer.wrap(msg.getBytes());
+                String message = readMessage(key);
+                System.out.println(message);
+                if(isSignInUserMessage(message.trim()))
+                    if(!pairsHandler.isAutorized((SocketChannel) key.channel())) {
+                        pairsHandler.addNewUser((SocketChannel) key.channel(), getNameFromMessage(message));
+                        sendMessageToClient(key,"SUCCESS:YOU REGISTERED");
+                }
+                else {
+                        sendMessageToClient(key,"ERROR:YOU ALREADY REGISTERED");
+                    }
+                //System.out.println("client alredy aut");
+                /*if (message.length() > 0) {
+                    ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
                     SocketChannel socketChannel = (SocketChannel) key.channel();
                     socketChannel.write(buffer);
                     buffer.flip();
-                }
+                }*/
             }
-
             setIterator.remove();
         }
     }
 
-    private String processRead(SelectionKey key) throws IOException {
+    private void sendMessageToClient(SelectionKey key,String message) throws IOException {
+        ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
+        SocketChannel socketChannel = (SocketChannel) key.channel();
+        socketChannel.write(buffer);
+        buffer.flip();
+    }
+
+    private boolean isSignInUserMessage(String s){
+        if(s.equalsIgnoreCase("/register user Alex"))
+            return true;
+        else return false;
+    }
+
+    private boolean isSignInAgentMessage(String s){
+        if(s.equals("/register user Alex"))
+            return true;
+        else return false;
+    }
+
+    private String getNameFromMessage(String s){
+        return s.replaceAll("\\/register|[\\s]|user|agent","");
+    }
+
+    private String readMessage(SelectionKey key) throws IOException {
         SocketChannel sChannel = (SocketChannel) key.channel();
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         int bytesCount = sChannel.read(buffer);
         if (bytesCount > 0) {
-            //buffer.flip();
+            buffer.flip();
             return new String(buffer.array());
         }
-        return "NoMessage";
+        return "";
     }
 
 }
