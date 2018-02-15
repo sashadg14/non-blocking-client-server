@@ -72,39 +72,48 @@ public class ServerConnectionHandler {
     }
 
     private void messageHandle(SelectionKey key, String message) throws IOException {
+        SocketChannel userChannel= (SocketChannel) key.channel();
         switch (mUtils.getMessageType(message)) {
             case Constants.MESSAGE_TYPE_REGISTER:
                 handleRegistration(key,message);
                 break;
             case Constants.MESSAGE_TYPE_SMS:
-                if (!allClientsBase.isAutorized((SocketChannel) key.channel(), mUtils.getNameFromMessage(message))) {
-                    sendMessageToClient((SocketChannel) key.channel(), Constants.ERROR_NEED_REGISTERING);
+                if (!allClientsBase.isAutorized(userChannel, mUtils.getNameFromMessage(message))) {
+                    sendMessageToClient(userChannel, Constants.ERROR_NEED_REGISTERING);
                 } else {
                    // System.out.println(allClientsBase.getUserNameByChanel((SocketChannel) key.channel()));
-                    if(allClientsBase.doesClientHasInterlocutor((SocketChannel) key.channel())) {
-                        if (allClientsBase.doesItsUserChannel((SocketChannel) key.channel()))
-                            sendMessageToClient(allClientsBase.getClientInterlocutorChannel((SocketChannel) key.channel()),"agent: "+message);
-                        else sendMessageToClient(allClientsBase.getClientInterlocutorChannel((SocketChannel) key.channel()),"user: "+message);
-                    } else {
-                        if (allClientsBase.doesItsUserChannel((SocketChannel) key.channel())) {
-                            usersSMSCache.addSMSinCache((SocketChannel) key.channel(),message);
-                            allClientsBase.addUserChannelInWaiting((SocketChannel) key.channel());
-                            sendMessageToClient((SocketChannel) key.channel(),"wait your agent");
-                        }
-                        else sendMessageToClient((SocketChannel) key.channel(),"you have't user");
-                    }
-                    //TODO: отправка сообщений другому юзеру
+                    handleMessagesFromAutorizedUser(userChannel,message);
                 }
                 break;
             case Constants.MESSAGE_TYPE_EXIT:
+                //TODO: отключение юзера
                // key.channel().close();
                 break;
             case Constants.MESSAGE_TYPE_LEAVE:
-                //TODO: открепление юзера
+                System.out.println("leave");
+                if (allClientsBase.doesItsUserChannel(userChannel)) {
+                    sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel), "user leave from dialog");
+                    allClientsBase.breakConnBetweenUserAndAgent(userChannel);
+                }
                 break;
         }
     }
 
+    private void handleMessagesFromAutorizedUser(SocketChannel userChannel,String message) throws IOException {
+        if(allClientsBase.doesClientHasInterlocutor(userChannel)) {
+            if (allClientsBase.doesItsUserChannel(userChannel))
+                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel),"user: "+message);
+            else sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel),"agent: "+message);
+        } else {
+            if (allClientsBase.doesItsUserChannel(userChannel)) {
+                usersSMSCache.addSMSinCache(userChannel,message);
+                allClientsBase.addUserChannelInWaiting(userChannel);
+                sendMessageToClient(userChannel,"wait your agent\n");
+            }
+            else sendMessageToClient(userChannel,"you have't user\n");
+        }
+    }
+    
     private void handleRegistration(SelectionKey key,String message) throws IOException {
         String name = mUtils.getNameFromMessage(message);
         if (allClientsBase.isAutorized((SocketChannel) key.channel(), name)) {

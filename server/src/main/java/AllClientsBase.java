@@ -45,6 +45,18 @@ public class AllClientsBase {
         return false;
     }
 
+    public void breakConnBetweenUserAndAgent(SocketChannel channel){
+        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator=pairList.iterator();
+        while(pairIterator.hasNext()) {
+            Pair<SocketChannel,SocketChannel> pair=pairIterator.next();
+            pairIterator.remove();
+            if (pair.getKey() == channel) {
+                freeArentsList.add(pair.getValue());
+            }
+        }
+
+    }
+
     public boolean doesItsUserChannel(SocketChannel channel){
         return usersMap.containsKey(channel);
     }
