@@ -6,7 +6,7 @@ public class NioServer {
     public static void main(String[] args) throws Exception {
         ServerConnectionHandler serverConnectionHandler =new ServerConnectionHandler();
         serverConnectionHandler.createConnection();
+        System.out.println("Server started\n");
         serverConnectionHandler.listenConnection();
     }
-
 }
