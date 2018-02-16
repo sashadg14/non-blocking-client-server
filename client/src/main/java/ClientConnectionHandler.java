@@ -21,17 +21,18 @@ import java.util.Set;
 public class ClientConnectionHandler {
     private Selector selector;
     SocketChannel channel;
-    boolean isActive=true;
+    volatile boolean isActive=true;
+    Scanner scanner=new Scanner(System.in);
     Thread thread = new Thread(() -> {
-        Scanner scanner=new Scanner(System.in);
         while (scanner.hasNext()&&isActive){
             String message = scanner.nextLine();
             ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
             try {
                 channel.write(buffer);
+                if (message.matches("\\/exit"))
+                    isActive=false;
             } catch (IOException e) {
                scanner.close();
-                System.out.println("The server probably broke down");
                 break;
             }
         }
@@ -39,6 +40,7 @@ public class ClientConnectionHandler {
 
     public void closeThread(){
         isActive=false;
+        scanner.close();
     }
 
     public String readString() throws Exception {
@@ -64,6 +66,8 @@ public class ClientConnectionHandler {
                 } catch (Exception e){
                     return true;
                 }
+                if (msg.equalsIgnoreCase(""))
+                    return true;
                 System.out.println("-> " + msg);
             }
             iterator.remove();
@@ -72,11 +76,12 @@ public class ClientConnectionHandler {
     }
 
     public void listenConnection() throws Exception {
+        thread.setDaemon(true);
         thread.start();
         while (true) {
             if (selector.select() > 0) {
-                boolean doneStatus = processReadySet(selector.selectedKeys());
-                if (doneStatus) {
+                boolean isDone = processReadySet(selector.selectedKeys());
+                if (isDone) {
                     break;
                 }
             }

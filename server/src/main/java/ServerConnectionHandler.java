@@ -1,4 +1,6 @@
 import javafx.util.Pair;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -19,7 +21,8 @@ public class ServerConnectionHandler {
     private ServerSocketChannel serverSocketChannel;
     AllClientsBase allClientsBase = new AllClientsBase();
     MessagesUtils mUtils = new MessagesUtils();
-    UsersSMSCache usersSMSCache=new UsersSMSCache();
+    UsersSMSCache usersSMSCache = new UsersSMSCache();
+    Logger logger = Logger.getLogger(ServerConnectionHandler.class);
 
     public void createConnection() throws IOException {
         selector = Selector.open();
@@ -40,94 +43,136 @@ public class ServerConnectionHandler {
     }
 
     public void tryToCreateNewPair() throws IOException {
-        Pair<SocketChannel,SocketChannel> pair=allClientsBase.createNewPairOfUserAndAgent();
-        if(pair!=null){
-            sendMessageToClient(pair.getKey(),"your agent is "+allClientsBase.getAgentNameByChanel(pair.getValue()));
-            sendMessageToClient(pair.getValue(),"your user is "+allClientsBase.getUserNameByChanel(pair.getKey())+"\n");
-            sendMessageToClient(pair.getValue(),"user: "+usersSMSCache.removeCachedSMS(pair.getKey()));
+        Pair<SocketChannel, SocketChannel> pair = allClientsBase.createNewPairOfUserAndAgent();
+        if (pair != null) {
+            String userName = allClientsBase.getClientNameByChanel(pair.getKey());
+            String agentName = allClientsBase.getClientNameByChanel(pair.getValue());
+            logger.log(Level.INFO, "Created chat between " + userName + " and " + agentName);
+            sendMessageToClient(pair.getKey(), "your agent is " + allClientsBase.getClientNameByChanel(pair.getValue()));
+            sendMessageToClient(pair.getValue(), "your user is " + allClientsBase.getClientNameByChanel(pair.getKey()) + "\n");
+            sendMessageToClient(pair.getValue(), "user: " + usersSMSCache.removeCachedSMS(pair.getKey()));
         }
     }
 
     private void handleSet(Set<SelectionKey> set) throws IOException {
-        Iterator<SelectionKey> setIterator = set.iterator();
-        while (setIterator.hasNext()) {
-            SelectionKey key = setIterator.next();
+        Iterator<SelectionKey> keySetIterator = set.iterator();
+        while (keySetIterator.hasNext()) {
+            SelectionKey key = keySetIterator.next();
             switch (key.readyOps()) {
                 case SelectionKey.OP_ACCEPT:
                     acceptNewConnection();
                     break;
                 case SelectionKey.OP_READ:
-                    String message = readMessage(key);
+                    String message = "";
+                    try {
+                        message = readMessage(key);
+                    } catch (IOException e) {
+                        logger.log(Level.INFO, "Client " + allClientsBase.getClientNameByChanel((SocketChannel) key.channel()) + " disconnect");
+                        handlingClientDisconnecting((SocketChannel) key.channel());
+                        break;
+                    }
                     messageHandle(key, message.trim());
                     break;
             }
-            setIterator.remove();
+            keySetIterator.remove();
         }
+    }
+
+    private void handlingClientDisconnecting(SocketChannel clientChannel) throws IOException {
+        if (allClientsBase.doesClientHasInterlocutor(clientChannel))
+            if (allClientsBase.doesItsUserChannel(clientChannel)) {
+                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user disconnected");
+                allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
+                allClientsBase.removeUserChanelFromBase(clientChannel);
+            } else if (allClientsBase.doesItsAgentChannel(clientChannel)) {
+                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "agent disconnected");
+                allClientsBase.breakChatBetweenAgentAndUser(clientChannel);
+                allClientsBase.removeAgentChanelFromBase(clientChannel);
+            }
+        clientChannel.close();
     }
 
     private void acceptNewConnection() throws IOException {
         SocketChannel socketChannel = serverSocketChannel.accept();
+        logger.log(Level.INFO, "Connected new client " + socketChannel.getLocalAddress());
         socketChannel.configureBlocking(false);
         socketChannel.register(selector, SelectionKey.OP_READ);
     }
 
     private void messageHandle(SelectionKey key, String message) throws IOException {
-        SocketChannel userChannel= (SocketChannel) key.channel();
-        switch (mUtils.getMessageType(message)) {
+        SocketChannel clientChannel = (SocketChannel) key.channel();
+        //final String type=;
+        switch (mUtils.getMessageType(message.trim())) {
             case Constants.MESSAGE_TYPE_REGISTER:
-                handleRegistration(key,message);
+                handleRegistration(clientChannel, message);
                 break;
             case Constants.MESSAGE_TYPE_SMS:
-                if (!allClientsBase.isAutorized(userChannel, mUtils.getNameFromMessage(message))) {
-                    sendMessageToClient(userChannel, Constants.ERROR_NEED_REGISTERING);
-                } else {
-                   // System.out.println(allClientsBase.getUserNameByChanel((SocketChannel) key.channel()));
-                    handleMessagesFromAutorizedUser(userChannel,message);
-                }
+                if (!allClientsBase.isAutorized(clientChannel, mUtils.getNameFromMessage(message))) {
+                    sendMessageToClient(clientChannel, Constants.ERROR_NEED_REGISTERING);
+                } else
+                    handleMessagesFromAutorizedUser(clientChannel, message);
                 break;
             case Constants.MESSAGE_TYPE_EXIT:
-                //TODO: отключение юзера
-               // key.channel().close();
+                handleClientExit(clientChannel);
                 break;
             case Constants.MESSAGE_TYPE_LEAVE:
-                System.out.println("leave");
-                if (allClientsBase.doesItsUserChannel(userChannel)) {
-                    sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel), "user leave from dialog");
-                    allClientsBase.breakConnBetweenUserAndAgent(userChannel);
+                if (allClientsBase.doesClientHasInterlocutor(clientChannel) && allClientsBase.doesItsUserChannel(clientChannel)) {
+                    sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user leave from dialog");
+                    allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
+                    String agentName = allClientsBase.getClientNameByChanel(allClientsBase.getClientInterlocutorChannel(clientChannel));
+                    logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " leave from dialog width " + agentName);
                 }
                 break;
         }
     }
 
-    private void handleMessagesFromAutorizedUser(SocketChannel userChannel,String message) throws IOException {
-        if(allClientsBase.doesClientHasInterlocutor(userChannel)) {
+    private void handleClientExit(SocketChannel clientChannel) throws IOException {
+        if (allClientsBase.doesClientHasInterlocutor(clientChannel)) {
+            if (allClientsBase.doesItsUserChannel(clientChannel)) {
+                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user exit");
+                allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
+                allClientsBase.removeUserChanelFromBase(clientChannel);
+                logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
+            } else if (allClientsBase.doesItsAgentChannel(clientChannel)) {
+                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "agent exit");
+                allClientsBase.breakChatBetweenAgentAndUser(clientChannel);
+                allClientsBase.removeAgentChanelFromBase(clientChannel);
+                logger.log(Level.INFO, "agent " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
+            }
+        } else logger.log(Level.INFO, "client " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
+        clientChannel.close();
+    }
+
+    private void handleMessagesFromAutorizedUser(SocketChannel userChannel, String message) throws IOException {
+        if (allClientsBase.doesClientHasInterlocutor(userChannel)) {
             if (allClientsBase.doesItsUserChannel(userChannel))
-                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel),"user: "+message);
-            else sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel),"agent: "+message);
+                sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel), "user: " + message);
+            else sendMessageToClient(allClientsBase.getClientInterlocutorChannel(userChannel), "agent: " + message);
         } else {
             if (allClientsBase.doesItsUserChannel(userChannel)) {
-                usersSMSCache.addSMSinCache(userChannel,message);
+                usersSMSCache.addSMSinCache(userChannel, message);
                 allClientsBase.addUserChannelInWaiting(userChannel);
-                sendMessageToClient(userChannel,"wait your agent\n");
-            }
-            else sendMessageToClient(userChannel,"you have't user\n");
+                sendMessageToClient(userChannel, "wait your agent\n");
+            } else sendMessageToClient(userChannel, "you have't user\n");
         }
     }
-    
-    private void handleRegistration(SelectionKey key,String message) throws IOException {
+
+    private void handleRegistration(SocketChannel userChannel, String message) throws IOException {
         String name = mUtils.getNameFromMessage(message);
-        if (allClientsBase.isAutorized((SocketChannel) key.channel(), name)) {
-            sendMessageToClient((SocketChannel) key.channel(), Constants.ERROR_ALREADY_REGISTRED);
+        if (allClientsBase.isAutorized(userChannel, name)) {
+            sendMessageToClient(userChannel, Constants.ERROR_ALREADY_REGISTRED);
             return;
         }
         if (mUtils.isSignInUserMessage(message)) {
-            allClientsBase.addNewUser((SocketChannel) key.channel(), name);
-            sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED);
+            allClientsBase.addNewUser(userChannel, name);
+            sendMessageToClient(userChannel, Constants.SUCCESS_REGISTRED);
+            logger.log(Level.INFO, "Registered user " + name);
             //System.out.println("user");
         } else if (mUtils.isSignInAgentMessage(message)) {
-            allClientsBase.addNewAgent((SocketChannel) key.channel(), name);
-            sendMessageToClient((SocketChannel) key.channel(), Constants.SUCCESS_REGISTRED+"\n");
-           // System.out.println("agent");
+            allClientsBase.addNewAgent(userChannel, name);
+            sendMessageToClient(userChannel, Constants.SUCCESS_REGISTRED + "\n");
+            logger.log(Level.INFO, "Registered agent " + name);
+            // System.out.println("agent");
         }
     }
 

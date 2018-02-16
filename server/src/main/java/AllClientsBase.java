@@ -17,11 +17,13 @@ public class AllClientsBase {
 
     public void addNewUser(SocketChannel channel, String name) {
         usersMap.put(channel, name);
-       // waitingUsersList.add(channel);
+        // waitingUsersList.add(channel);
     }
-    public void addUserChannelInWaiting(SocketChannel channel){
+
+    public void addUserChannelInWaiting(SocketChannel channel) {
         waitingUsersList.add(channel);
     }
+
     public void addNewAgent(SocketChannel channel, String name) {
         agentsMap.put(channel, name);
         freeArentsList.add(channel);
@@ -31,11 +33,12 @@ public class AllClientsBase {
         return usersMap.containsKey(channel) || agentsMap.containsKey(channel) || agentsMap.containsValue(name) || usersMap.containsValue(name);
     }
 
-    public String getUserNameByChanel(SocketChannel channel) {
-        return usersMap.get(channel);
-    }
-    public String getAgentNameByChanel(SocketChannel channel) {
-        return agentsMap.get(channel);
+    public String getClientNameByChanel(SocketChannel channel) {
+        if (usersMap.containsKey(channel))
+            return usersMap.get(channel);
+        else if (agentsMap.containsKey(channel))
+            return agentsMap.get(channel);
+        return "not authorized";
     }
 
     public boolean doesClientHasInterlocutor(SocketChannel channel) {
@@ -45,20 +48,33 @@ public class AllClientsBase {
         return false;
     }
 
-    public void breakConnBetweenUserAndAgent(SocketChannel channel){
-        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator=pairList.iterator();
-        while(pairIterator.hasNext()) {
-            Pair<SocketChannel,SocketChannel> pair=pairIterator.next();
-            pairIterator.remove();
-            if (pair.getKey() == channel) {
+    public void breakChatBetweenUserAndAgent(SocketChannel userChannel) {
+        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator = pairList.iterator();
+        while (pairIterator.hasNext()) {
+            Pair<SocketChannel, SocketChannel> pair = pairIterator.next();
+            if (pair.getKey() == userChannel) {
                 freeArentsList.add(pair.getValue());
+                pairIterator.remove();
+            }
+        }
+    }
+    public void breakChatBetweenAgentAndUser(SocketChannel agentChannel) {
+        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator = pairList.iterator();
+        while (pairIterator.hasNext()) {
+            Pair<SocketChannel, SocketChannel> pair = pairIterator.next();
+            if (pair.getValue() == agentChannel) {
+                freeArentsList.add(pair.getValue());
+                pairIterator.remove();
             }
         }
 
     }
 
-    public boolean doesItsUserChannel(SocketChannel channel){
+    public boolean doesItsUserChannel(SocketChannel channel) {
         return usersMap.containsKey(channel);
+    }
+    public boolean doesItsAgentChannel(SocketChannel channel) {
+        return agentsMap.containsKey(channel);
     }
 
     public SocketChannel getClientInterlocutorChannel(SocketChannel channel) {
@@ -70,10 +86,23 @@ public class AllClientsBase {
         return null;
     }
 
-    public Pair<SocketChannel, SocketChannel> createNewPairOfUserAndAgent(){
-        if(isSomeUsersWait()&&isSomeAgentsFree()){
+    public void removeUserChanelFromBase(SocketChannel userChannel){
+        if(waitingUsersList.contains(userChannel))
+            waitingUsersList.remove(userChannel);
+        if(usersMap.containsKey(userChannel))
+            usersMap.remove(userChannel);
+    }
+    public void removeAgentChanelFromBase(SocketChannel agentChannel){
+        if(freeArentsList.contains(agentChannel))
+            freeArentsList.remove(agentChannel);
+        if(agentsMap.containsKey(agentChannel))
+            agentsMap.remove(agentChannel);
+    }
+
+    public Pair<SocketChannel, SocketChannel> createNewPairOfUserAndAgent() {
+        if (isSomeUsersWait() && isSomeAgentsFree()) {
             //first channel - user, second - agent channel
-            Pair<SocketChannel,SocketChannel> pair=new Pair<>(waitingUsersList.remove(0),freeArentsList.remove(0));
+            Pair<SocketChannel, SocketChannel> pair = new Pair<SocketChannel, SocketChannel>(waitingUsersList.remove(0), freeArentsList.remove(0));
             pairList.add(pair);
             return pair;
         }
