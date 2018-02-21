@@ -32,7 +32,7 @@ public class ServerConnectionHandler {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
     }
 
-    public void listenConnection() throws IOException {
+    public void listenConnection() throws IOException, InterruptedException {
         while (true) {
             if (selector.select() <= 0) {
                 continue;
@@ -42,7 +42,7 @@ public class ServerConnectionHandler {
         }
     }
 
-    public void tryToCreateNewPair() throws IOException {
+    private void tryToCreateNewPair() throws IOException {
         Pair<SocketChannel, SocketChannel> pair = allClientsBase.createNewPairOfUserAndAgent();
         if (pair != null) {
             String userName = allClientsBase.getClientNameByChanel(pair.getKey());
@@ -54,7 +54,7 @@ public class ServerConnectionHandler {
         }
     }
 
-    private void handleSet(Set<SelectionKey> set) throws IOException {
+    private void handleSet(Set<SelectionKey> set) throws IOException, InterruptedException {
         Iterator<SelectionKey> keySetIterator = set.iterator();
         while (keySetIterator.hasNext()) {
             SelectionKey key = keySetIterator.next();
@@ -104,6 +104,11 @@ public class ServerConnectionHandler {
         //final String type=;
         switch (mUtils.getMessageType(message.trim())) {
             case Constants.MESSAGE_TYPE_REGISTER:
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 handleRegistration(clientChannel, message);
                 break;
             case Constants.MESSAGE_TYPE_SMS:
@@ -164,13 +169,13 @@ public class ServerConnectionHandler {
             return;
         }
         if (mUtils.isSignInUserMessage(message)) {
-            allClientsBase.addNewUser(userChannel, name);
             sendMessageToClient(userChannel, Constants.SUCCESS_REGISTRED);
+            allClientsBase.addNewUser(userChannel, name);
             logger.log(Level.INFO, "Registered user " + name);
             //System.out.println("user");
         } else if (mUtils.isSignInAgentMessage(message)) {
-            allClientsBase.addNewAgent(userChannel, name);
             sendMessageToClient(userChannel, Constants.SUCCESS_REGISTRED + "\n");
+            allClientsBase.addNewAgent(userChannel, name);
             logger.log(Level.INFO, "Registered agent " + name);
             // System.out.println("agent");
         }
