@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -20,10 +21,10 @@ import java.util.Set;
 
 public class ClientConnectionHandler {
     private Selector selector;
-    SocketChannel channel;
-    volatile boolean isActive=true;
-    Scanner scanner=new Scanner(System.in);
-    Thread thread = new Thread(() -> {
+    private SocketChannel channel;
+    private volatile boolean isActive=true;
+    private Scanner scanner=new Scanner(System.in);
+    private Thread thread = new Thread(() -> {
         while (scanner.hasNext()&&isActive){
             String message = scanner.nextLine();
             ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
@@ -43,7 +44,7 @@ public class ClientConnectionHandler {
         scanner.close();
     }
 
-    public String readString() throws Exception {
+    private String readString() throws Exception {
         ByteBuffer buffer = ByteBuffer.allocate(4024);
         channel.read(buffer);
         buffer.flip();
@@ -54,7 +55,7 @@ public class ClientConnectionHandler {
         return msg;
     }
 
-    public boolean processReadySet(Set readySet) {
+    private boolean processReadySet(Set readySet) {
         Iterator iterator = readySet.iterator();
         while (iterator.hasNext()) {
             SelectionKey key = (SelectionKey)
@@ -64,6 +65,7 @@ public class ClientConnectionHandler {
                 try {
                     msg = readString();
                 } catch (Exception e){
+                    System.out.println("Server broken down");
                     return true;
                 }
                 if (msg.equalsIgnoreCase(""))

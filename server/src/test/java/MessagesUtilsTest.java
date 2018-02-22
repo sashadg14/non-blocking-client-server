@@ -34,10 +34,8 @@ class MessagesUtilsTest {
         Assert.assertFalse(messagesUtils.isSignInMessage("sad"));
         Assert.assertTrue(messagesUtils.isSignInMessage("/register agent alex"));
         Assert.assertTrue(messagesUtils.isSignInMessage("/register user alex"));
-
         Assert.assertFalse(messagesUtils.isSignInMessage("register user alex"));
         Assert.assertFalse(messagesUtils.isSignInMessage("register saagent alex"));
-
         Assert.assertTrue(messagesUtils.isSignInMessage("/register agent alex4312"));
         Assert.assertFalse(messagesUtils.isSignInMessage("/register agent alex4312 sd"));
     }
@@ -61,6 +59,7 @@ class MessagesUtilsTest {
     @Test
     void getNameFromMessage() {
         Assert.assertEquals(messagesUtils.getNameFromMessage("/register user alex"),"alex");
+        Assert.assertNotEquals(messagesUtils.getNameFromMessage("/register user alex"),"alefdsx");
         Assert.assertEquals(messagesUtils.getNameFromMessage("/register agent afdasdfasd"),"afdasdfasd");
     }
 

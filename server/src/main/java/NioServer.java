@@ -4,9 +4,9 @@
 public class NioServer {
 
     public static void main(String[] args) throws Exception {
-        ServerConnectionHandler serverConnectionHandler =new ServerConnectionHandler();
-        serverConnectionHandler.createConnection();
+        ServerConnection serverConnection =new ServerConnection();
+        serverConnection.createConnection();
         System.out.println("Server started\n");
-        serverConnectionHandler.listenConnection();
+        serverConnection.listenConnection();
     }
 }

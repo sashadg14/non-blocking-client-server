@@ -13,7 +13,7 @@ public class AllClientsBase {
     private Map<SocketChannel, String> agentsMap = new LinkedHashMap<>();
     private List<SocketChannel> freeArentsList = new LinkedList<>();
 
-    private List<Pair<SocketChannel, SocketChannel>> pairList = new LinkedList<>();
+    private List<Pair<SocketChannel, SocketChannel>> pairUserAgentList = new LinkedList<>();
 
     public void addNewUser(SocketChannel channel, String name) {
         usersMap.put(channel, name);
@@ -41,15 +41,15 @@ public class AllClientsBase {
         return "not authorized";
     }
 
-    public boolean doesClientHasInterlocutor(SocketChannel channel) {
-        for (Pair<SocketChannel, SocketChannel> pair : pairList)
+    public boolean doesClientHaveInterlocutor(SocketChannel channel) {
+        for (Pair<SocketChannel, SocketChannel> pair : pairUserAgentList)
             if (pair.getKey() == channel || pair.getValue() == channel)
                 return true;
         return false;
     }
 
     public void breakChatBetweenUserAndAgent(SocketChannel userChannel) {
-        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator = pairList.iterator();
+        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator = pairUserAgentList.iterator();
         while (pairIterator.hasNext()) {
             Pair<SocketChannel, SocketChannel> pair = pairIterator.next();
             if (pair.getKey() == userChannel) {
@@ -59,7 +59,7 @@ public class AllClientsBase {
         }
     }
     public void breakChatBetweenAgentAndUser(SocketChannel agentChannel) {
-        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator = pairList.iterator();
+        Iterator<Pair<SocketChannel, SocketChannel>> pairIterator = pairUserAgentList.iterator();
         while (pairIterator.hasNext()) {
             Pair<SocketChannel, SocketChannel> pair = pairIterator.next();
             if (pair.getValue() == agentChannel) {
@@ -78,7 +78,7 @@ public class AllClientsBase {
     }
 
     public SocketChannel getClientInterlocutorChannel(SocketChannel channel) {
-        for (Pair<SocketChannel, SocketChannel> pair : pairList)
+        for (Pair<SocketChannel, SocketChannel> pair : pairUserAgentList)
             if (pair.getKey() == channel)
                 return pair.getValue();
             else if (pair.getValue() == channel)
@@ -102,8 +102,8 @@ public class AllClientsBase {
     public Pair<SocketChannel, SocketChannel> createNewPairOfUserAndAgent() {
         if (isSomeUsersWait() && isSomeAgentsFree()) {
             //first channel - user, second - agent channel
-            Pair<SocketChannel, SocketChannel> pair = new Pair<SocketChannel, SocketChannel>(waitingUsersList.remove(0), freeArentsList.remove(0));
-            pairList.add(pair);
+            Pair<SocketChannel, SocketChannel> pair = new Pair<>(waitingUsersList.remove(0), freeArentsList.remove(0));
+            pairUserAgentList.add(pair);
             return pair;
         }
         return null;
