@@ -5,6 +5,8 @@ public class Constants {
     public static final String SUCCESS_REGISTRED="SUCCESS: REGISTERED";
     public static final String ERROR_ALREADY_REGISTRED="ERROR: ALREADY REGISTERED";
     public static final String ERROR_NEED_REGISTERING="ERROR: NEED REGISTERING";
+    public static final String WAIT_AGENT="WAIT AGENT\n";
+    public static final String WAIT_USER="WAIT USER\n";
 
     public static final String MESSAGE_TYPE_REGISTER="TYPE REGISTER";
     public static final String MESSAGE_TYPE_EXIT="TYPE EXIT";

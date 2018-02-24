@@ -41,7 +41,7 @@ public class AllClientsBase {
         return "not authorized";
     }
 
-    public boolean doesClientHaveInterlocutor(SocketChannel channel) {
+    public boolean doesClientHaveInterlocutor(SocketChannel channel){
         for (Pair<SocketChannel, SocketChannel> pair : pairUserAgentList)
             if (pair.getKey() == channel || pair.getValue() == channel)
                 return true;

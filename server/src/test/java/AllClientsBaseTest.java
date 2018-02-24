@@ -10,7 +10,7 @@ class AllClientsBaseTest {
     private SocketChannel channel2=mock(SocketChannel.class);
     private SocketChannel channel3=mock(SocketChannel.class);
     AllClientsBase allClientsBase;
-
+   //некоторые строки дублируются во всех методах ибо не вызывались методы с аннотациями @Before и @After
     @Test
     void isAutorized() {
         allClientsBase = new AllClientsBase();

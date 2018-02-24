@@ -30,7 +30,7 @@ public class ServerConnection {
         serverSocketChannel.socket().bind(new InetSocketAddress(port));
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-        serverCommunication=new ServerCommunication(this);
+        serverCommunication=new ServerCommunication(allClientsBase,this);
     }
 
     public void listenConnection() throws IOException{
@@ -81,11 +81,11 @@ public class ServerConnection {
         //final String type=;
         switch (mUtils.getMessageType(message.trim())) {
             case Constants.MESSAGE_TYPE_REGISTER:
-                try {
+                /*try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                }
+                }*/
                 serverCommunication.handleRegistration(clientChannel, message);
                 break;
             case Constants.MESSAGE_TYPE_SMS:

@@ -38,6 +38,7 @@ class MessagesUtilsTest {
         Assert.assertFalse(messagesUtils.isSignInMessage("register saagent alex"));
         Assert.assertTrue(messagesUtils.isSignInMessage("/register agent alex4312"));
         Assert.assertFalse(messagesUtils.isSignInMessage("/register agent alex4312 sd"));
+        Assert.assertFalse(messagesUtils.isSignInMessage("/register agent"));
     }
 
     @Test

@@ -4,19 +4,19 @@
 public class MessagesUtils {
 
     public boolean isSignInUserMessage(String s){
-        if(s.matches("\\/register\\s*user\\s*[a-z,A-Z,\\d]*"))
+        if(s.matches("\\/register\\s*user\\s*[a-z,A-Z,\\d]+"))
             return true;
         else return false;
     }
 
     public boolean isSignInAgentMessage(String s){
-        if(s.matches("\\/register\\s*agent\\s*[a-z,A-Z,\\d]*"))
+        if(s.matches("\\/register\\s*agent\\s*[a-z,A-Z,\\d]+"))
             return true;
         else return false;
     }
 
     public boolean isSignInMessage(String s){
-        if(s.matches("\\/register\\s*(agent|user)\\s*[a-z,A-Z,\\d]*"))
+        if(s.matches("\\/register\\s*(agent|user)\\s*[a-z,A-Z,\\d]+"))
             return true;
         else return false;
     }
