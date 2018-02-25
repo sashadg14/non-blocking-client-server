@@ -122,11 +122,12 @@ public class ServerCommunication {
     }
 
 
-    public void handleClientExit(SocketChannel clientChannel) throws IOException {
+    public void handleClientExit(SocketChannel clientChannel){
         try {
             clientChannel.close();
         } catch (Exception ignored){};
         if (allClientsBase.doesClientHaveInterlocutor(clientChannel)) {
+            try {
             if (allClientsBase.doesItsUserChannel(clientChannel)) {
                 logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
                 serverConnection.sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user exit");
@@ -137,6 +138,8 @@ public class ServerCommunication {
                 serverConnection.sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "agent exit");
                 allClientsBase.breakChatBetweenAgentAndUser(clientChannel);
                 allClientsBase.removeAgentChanelFromBase(clientChannel);
+            }} catch (IOException e){
+                handlingClientDisconnecting(allClientsBase.getClientInterlocutorChannel(clientChannel));
             }
         } else logger.log(Level.INFO, "client " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
     }

@@ -55,6 +55,7 @@ public class AllClientsBase {
             if (pair.getKey() == userChannel) {
                 freeArentsList.add(pair.getValue());
                 pairIterator.remove();
+                break;
             }
         }
     }

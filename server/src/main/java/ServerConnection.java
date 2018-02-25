@@ -30,10 +30,10 @@ public class ServerConnection {
         serverSocketChannel.socket().bind(new InetSocketAddress(port));
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-        serverCommunication=new ServerCommunication(allClientsBase,this);
+        serverCommunication = new ServerCommunication(allClientsBase, this);
     }
 
-    public void listenConnection() throws IOException{
+    public void listenConnection() throws IOException {
         while (true) {
             if (selector.select() <= 0) {
                 continue;
@@ -44,13 +44,13 @@ public class ServerConnection {
     }
 
 
-    private void handleSet(Set<SelectionKey> set) throws IOException {
+    private void handleSet(Set<SelectionKey> set) {
         Iterator<SelectionKey> keySetIterator = set.iterator();
         while (keySetIterator.hasNext()) {
             SelectionKey key = keySetIterator.next();
             switch (key.readyOps()) {
                 case SelectionKey.OP_ACCEPT:
-                    acceptNewConnection();
+                        acceptNewConnection();
                     break;
                 case SelectionKey.OP_READ:
                     String message = "";
@@ -69,14 +69,26 @@ public class ServerConnection {
     }
 
 
-    private void acceptNewConnection() throws IOException {
-        SocketChannel socketChannel = serverSocketChannel.accept();
-        logger.log(Level.INFO, "Connected new client " + socketChannel.getLocalAddress());
-        socketChannel.configureBlocking(false);
-        socketChannel.register(selector, SelectionKey.OP_READ);
+    private void acceptNewConnection() {
+        SocketChannel socketChannel = null;
+        try {
+             socketChannel= serverSocketChannel.accept();
+            logger.log(Level.INFO, "Connected new client " + socketChannel.getLocalAddress());
+            socketChannel.configureBlocking(false);
+            socketChannel.register(selector, SelectionKey.OP_READ);
+        } catch (IOException e){
+            try {
+                logger.log(Level.INFO, "Error in new client connection");
+                if (socketChannel != null) {
+                    socketChannel.close();
+                }
+            } catch (IOException ignored) {
+
+            }
+        }
     }
 
-    private void messageHandle(SelectionKey key, String message) throws IOException {
+    private void messageHandle(SelectionKey key, String message) {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         //final String type=;
         switch (mUtils.getMessageType(message.trim())) {
@@ -86,11 +98,19 @@ public class ServerConnection {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }*/
-                serverCommunication.handleRegistration(clientChannel, message);
+                try {
+                    serverCommunication.handleRegistration(clientChannel, message);
+                } catch (IOException e) {
+                    serverCommunication.handlingClientDisconnecting(clientChannel);
+                }
                 break;
             case Constants.MESSAGE_TYPE_SMS:
                 if (!allClientsBase.isAutorized(clientChannel, mUtils.getNameFromMessage(message))) {
-                    sendMessageToClient(clientChannel, Constants.ERROR_NEED_REGISTERING);
+                    try {
+                        sendMessageToClient(clientChannel, Constants.ERROR_NEED_REGISTERING);
+                    } catch (IOException e) {
+                        serverCommunication.handlingClientDisconnecting(clientChannel);
+                    }
                 } else
                     serverCommunication.handleMessagesFromAutorizedUser(clientChannel, message);
                 break;
@@ -99,15 +119,18 @@ public class ServerConnection {
                 break;
             case Constants.MESSAGE_TYPE_LEAVE:
                 if (allClientsBase.doesClientHaveInterlocutor(clientChannel) && allClientsBase.doesItsUserChannel(clientChannel)) {
-                    sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user leave from dialog");
-                    allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
+                    try {
+                        sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user leave from dialog\n");
+                    } catch (IOException e) {
+                        serverCommunication.handlingClientDisconnecting(allClientsBase.getClientInterlocutorChannel(clientChannel));
+                    }
                     String agentName = allClientsBase.getClientNameByChanel(allClientsBase.getClientInterlocutorChannel(clientChannel));
-                    logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " leave from dialog width " + agentName);
+                    allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
+                    logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " leave from dialog with " + agentName);
                 }
                 break;
         }
     }
-
 
 
     public void sendMessageToClient(SocketChannel channel, String message) throws IOException {
