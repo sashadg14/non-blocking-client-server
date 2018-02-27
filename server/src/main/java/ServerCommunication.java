@@ -79,11 +79,12 @@ public class ServerCommunication {
         } else handleSingleClientDisconnecting(clientChannel);
         try {
             clientChannel.close();
-        } catch (Exception ignored){}
+        } catch (Exception ignored) {
+        }
     }
 
-    private void breakUserChannelConn(SocketChannel clientChannel){
-        SocketChannel channel=allClientsBase.getClientInterlocutorChannel(clientChannel);
+    private void breakUserChannelConn(SocketChannel clientChannel) {
+        SocketChannel channel = allClientsBase.getClientInterlocutorChannel(clientChannel);
         allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
         allClientsBase.removeUserChanelFromBase(clientChannel);
         try {
@@ -92,8 +93,9 @@ public class ServerCommunication {
             handlingClientDisconnecting(channel);
         }
     }
-    private void breakAgentChannelConn(SocketChannel clientChannel){
-        SocketChannel channel=allClientsBase.getClientInterlocutorChannel(clientChannel);
+
+    private void breakAgentChannelConn(SocketChannel clientChannel) {
+        SocketChannel channel = allClientsBase.getClientInterlocutorChannel(clientChannel);
         allClientsBase.breakChatBetweenAgentAndUser(clientChannel);
         allClientsBase.removeAgentChanelFromBase(clientChannel);
         try {
@@ -102,46 +104,56 @@ public class ServerCommunication {
             handlingClientDisconnecting(channel);
         }
     }
-    private void handleSingleClientDisconnecting(SocketChannel clientChannel){
+
+    private void handleSingleClientDisconnecting(SocketChannel clientChannel) {
         if (allClientsBase.doesItsUserChannel(clientChannel))
             allClientsBase.removeUserChanelFromBase(clientChannel);
         else if (allClientsBase.doesItsAgentChannel(clientChannel))
             allClientsBase.removeAgentChanelFromBase(clientChannel);
     }
 
-    public void tryToCreateNewPair() throws IOException {
+    public void tryToCreateNewPair() {
         Pair<SocketChannel, SocketChannel> pair = allClientsBase.createNewPairOfUserAndAgent();
         if (pair != null) {
             String userName = allClientsBase.getClientNameByChanel(pair.getKey());
             String agentName = allClientsBase.getClientNameByChanel(pair.getValue());
             logger.log(Level.INFO, "Created chat between " + userName + " and " + agentName);
-            serverConnection.sendMessageToClient(pair.getKey(), "your agent is " + allClientsBase.getClientNameByChanel(pair.getValue()));
-            serverConnection.sendMessageToClient(pair.getValue(), "your user is " + allClientsBase.getClientNameByChanel(pair.getKey()) + "\n");
-            serverConnection.sendMessageToClient(pair.getValue(), "user: " + usersSMSCache.removeCachedSMS(pair.getKey()));
+            try {
+                serverConnection.sendMessageToClient(pair.getKey(), "your agent is " + allClientsBase.getClientNameByChanel(pair.getValue()));
+            } catch (IOException e) {
+                handlingClientDisconnecting(pair.getKey());
+            }
+            try {
+                serverConnection.sendMessageToClient(pair.getValue(), "your user is " + allClientsBase.getClientNameByChanel(pair.getKey()) + "\n");
+                serverConnection.sendMessageToClient(pair.getValue(), "user: " + usersSMSCache.removeCachedSMS(pair.getKey()));
+            } catch (IOException e){
+                handlingClientDisconnecting(pair.getValue());
+            }
         }
     }
 
 
-    public void handleClientExit(SocketChannel clientChannel){
+    public void handleClientExit(SocketChannel clientChannel) {
         try {
             clientChannel.close();
-        } catch (Exception ignored){};
+        } catch (Exception ignored) {
+        }
         if (allClientsBase.doesClientHaveInterlocutor(clientChannel)) {
             try {
-            if (allClientsBase.doesItsUserChannel(clientChannel)) {
-                logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
-                serverConnection.sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user exit");
-                allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
-                allClientsBase.removeUserChanelFromBase(clientChannel);
-            } else if (allClientsBase.doesItsAgentChannel(clientChannel)) {
-                logger.log(Level.INFO, "agent " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
-                serverConnection.sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "agent exit");
-                allClientsBase.breakChatBetweenAgentAndUser(clientChannel);
-                allClientsBase.removeAgentChanelFromBase(clientChannel);
-            }} catch (IOException e){
+                if (allClientsBase.doesItsUserChannel(clientChannel)) {
+                    logger.log(Level.INFO, "user " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
+                    serverConnection.sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "user exit");
+                    allClientsBase.breakChatBetweenUserAndAgent(clientChannel);
+                    allClientsBase.removeUserChanelFromBase(clientChannel);
+                } else if (allClientsBase.doesItsAgentChannel(clientChannel)) {
+                    logger.log(Level.INFO, "agent " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
+                    serverConnection.sendMessageToClient(allClientsBase.getClientInterlocutorChannel(clientChannel), "agent exit");
+                    allClientsBase.breakChatBetweenAgentAndUser(clientChannel);
+                    allClientsBase.removeAgentChanelFromBase(clientChannel);
+                }
+            } catch (IOException e) {
                 handlingClientDisconnecting(allClientsBase.getClientInterlocutorChannel(clientChannel));
             }
         } else logger.log(Level.INFO, "client " + allClientsBase.getClientNameByChanel(clientChannel) + " exit");
     }
-
 }

@@ -8,6 +8,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -29,7 +30,6 @@ public class ServerConnection {
         serverSocketChannel.configureBlocking(false);
         serverSocketChannel.socket().bind(new InetSocketAddress(port));
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-
         serverCommunication = new ServerCommunication(allClientsBase, this);
     }
 
@@ -93,11 +93,11 @@ public class ServerConnection {
         //final String type=;
         switch (mUtils.getMessageType(message.trim())) {
             case Constants.MESSAGE_TYPE_REGISTER:
-                /*try {
+                try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                }*/
+                }
                 try {
                     serverCommunication.handleRegistration(clientChannel, message);
                 } catch (IOException e) {
@@ -132,7 +132,6 @@ public class ServerConnection {
         }
     }
 
-
     public void sendMessageToClient(SocketChannel channel, String message) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
         channel.write(buffer);
@@ -141,13 +140,17 @@ public class ServerConnection {
 
     private String readMessage(SelectionKey key) throws IOException {
         SocketChannel sChannel = (SocketChannel) key.channel();
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        int bytesCount = sChannel.read(buffer);
-        if (bytesCount > 0) {
-            buffer.flip();
-            return new String(buffer.array());
+        ByteBuffer buffer = ByteBuffer.allocate(1);
+        StringBuilder stringBuilder=new StringBuilder();
+        while (true) {
+            int bytesCount = sChannel.read(buffer);
+            if (bytesCount > 0) {
+                stringBuilder.append(new String(buffer.array()));
+                buffer.flip();
+            } else break;
         }
-        return "";
+        //System.err.println(stringBuilder.toString());
+        return stringBuilder.toString();
     }
 
 }

@@ -45,14 +45,16 @@ public class ClientConnectionHandler {
     }
 
     private String readString() throws Exception {
-        ByteBuffer buffer = ByteBuffer.allocate(4024);
-        channel.read(buffer);
-        buffer.flip();
-        Charset charset = Charset.forName("UTF-8");
-        CharsetDecoder decoder = charset.newDecoder();
-        CharBuffer charBuffer = decoder.decode(buffer);
-        String msg = charBuffer.toString();
-        return msg;
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        StringBuilder stringBuilder=new StringBuilder();
+        while (true) {
+            int bytesCount = channel.read(buffer);;
+            if (bytesCount > 0) {
+                stringBuilder.append(new String(buffer.array()));
+                buffer.flip();
+            } else break;
+        }
+        return stringBuilder.toString();
     }
 
     private boolean processReadySet(Set readySet) {
